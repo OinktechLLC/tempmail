@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>Проверка на робота — переход в приложение</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            min-height: 100vh;
+            background: linear-gradient(145deg, #f0f4fa 0%, #d9e0e8 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: 'Segoe UI', 'Roboto', system-ui, 'Helvetica Neue', sans-serif;
+            padding: 20px;
+        }
+
+        /* Карточка капчи — стиль Яндекс.Паспорт */
+        .captcha-card {
+            background: #ffffff;
+            border-radius: 32px;
+            box-shadow: 0 20px 35px -12px rgba(0, 0, 0, 0.2), 0 1px 3px rgba(0, 0, 0, 0.05);
+            width: 100%;
+            max-width: 480px;
+            padding: 30px 28px 38px;
+            transition: all 0.2s ease;
+            border: 1px solid rgba(0, 0, 0, 0.04);
+        }
+
+        h1 {
+            font-size: 1.8rem;
+            font-weight: 600;
+            letter-spacing: -0.3px;
+            color: #1e2f3e;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        h1::before {
+            content: "🤖";
+            font-size: 1.8rem;
+        }
+
+        .subhead {
+            color: #5c6f87;
+            font-size: 0.9rem;
+            border-left: 3px solid #ffcc00;
+            padding-left: 12px;
+            margin-bottom: 28px;
+            font-weight: 450;
+        }
+
+        /* Блок капчи: картинка + кнопка обновления */
+        .captcha-row {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            background: #f9fafc;
+            padding: 12px;
+            border-radius: 24px;
+            margin-bottom: 24px;
+            border: 1px solid #e2e8f0;
+        }
+
+        canvas {
+            display: block;
+            background: #fff;
+            border-radius: 20px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+            width: 280px;
+            height: 100px;
+            border: 1px solid #e0e7ef;
+            cursor: pointer;
+        }
+
+        .refresh-btn {
+            background: #f1f5f9;
+            border: none;
+            width: 52px;
+            height: 52px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            color: #2c3e50;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            border: 1px solid #e2edf7;
+        }
+
+        .refresh-btn:hover {
+            background: #e6edf6;
+            transform: rotate(15deg) scale(1.02);
+            color: #f5b042;
+        }
+
+        .refresh-btn:active {
+            transform: rotate(0deg) scale(0.96);
+        }
+
+        /* Поле ввода */
+        .input-group {
+            margin-bottom: 28px;
+        }
+
+        label {
+            display: block;
+            font-size: 0.85rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #4b5e7a;
+            margin-bottom: 8px;
+        }
+
+        .captcha-input {
+            width: 100%;
+            padding: 14px 18px;
+            font-size: 1rem;
+            font-family: 'SF Mono', 'Courier New', monospace;
+            background: #ffffff;
+            border: 1.5px solid #e2e8f0;
+            border-radius: 28px;
+            transition: 0.2s;
+            outline: none;
+            color: #0f172a;
+            font-weight: 500;
+        }
+
+        .captcha-input:focus {
+            border-color: #ffb347;
+            box-shadow: 0 0 0 3px rgba(255, 180, 71, 0.2);
+        }
+
+        /* Кнопка проверки */
+        .submit-btn {
+            background: linear-gradient(95deg, #ffb347 0%, #ff9e2c 100%);
+            width: 100%;
+            border: none;
+            padding: 14px 12px;
+            border-radius: 60px;
+            font-weight: 700;
+            font-size: 1.05rem;
+            color: white;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 4px 10px rgba(255, 156, 44, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            letter-spacing: 0.3px;
+        }
+
+        .submit-btn:hover {
+            background: linear-gradient(95deg, #ffa42b 0%, #ff9110 100%);
+            transform: translateY(-1px);
+            box-shadow: 0 8px 18px rgba(255, 140, 0, 0.35);
+        }
+
+        .submit-btn:active {
+            transform: translateY(2px);
+        }
+
+        /* Сообщение об ошибке */
+        .message-area {
+            margin-top: 20px;
+            font-size: 0.85rem;
+            text-align: center;
+            padding: 8px;
+            border-radius: 50px;
+            font-weight: 500;
+        }
+
+        .error-message {
+            background: #fff0f0;
+            color: #c2412c;
+            border-left: 4px solid #ff4d4f;
+            padding: 8px 12px;
+            border-radius: 20px;
+        }
+
+        .success-message {
+            background: #e6f9ed;
+            color: #2b6e3b;
+        }
+
+        .info-note {
+            margin-top: 20px;
+            text-align: center;
+            font-size: 0.7rem;
+            color: #7f8c8d;
+            border-top: 1px solid #edf2f7;
+            padding-top: 18px;
+        }
+
+        /* Анимация встряски */
+        @keyframes shakeError {
+            0% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+            100% { transform: translateX(0); }
+        }
+
+        .shake {
+            animation: shakeError 0.25s ease-in-out 0s 2;
+        }
+    </style>
+</head>
+<body>
+
+<div class="captcha-card">
+    <h1>Проверка безопасности</h1>
+    <div class="subhead">Подтвердите, что вы не робот — введите символы с картинки</div>
+
+    <div class="captcha-row">
+        <canvas id="captchaCanvas" width="280" height="100" style="width:280px; height:100px;"></canvas>
+        <button class="refresh-btn" id="refreshCaptchaBtn" aria-label="Обновить капчу">↻</button>
+    </div>
+
+    <div class="input-group">
+        <label for="captchaInput">🔐 Введите текст с изображения</label>
+        <input type="text" id="captchaInput" class="captcha-input" placeholder="Например: 3F7K9D" autocomplete="off" autocapitalize="off" spellcheck="false">
+    </div>
+
+    <button class="submit-btn" id="checkCaptchaBtn">
+        <span>✓</span> Проверить и перейти
+    </button>
+
+    <div id="messageBlock" class="message-area"></div>
+    <div class="info-note">
+        ⏱ После успешной проверки вы будете перенаправлены в приложение
+    </div>
+</div>
+
+<script>
+    (function() {
+        // DOM элементы
+        const canvas = document.getElementById('captchaCanvas');
+        const ctx = canvas.getContext('2d');
+        const captchaInput = document.getElementById('captchaInput');
+        const checkBtn = document.getElementById('checkCaptchaBtn');
+        const refreshBtn = document.getElementById('refreshCaptchaBtn');
+        const messageBlock = document.getElementById('messageBlock');
+
+        let currentCaptchaText = '';   // храним оригинальный текст капчи (верхний регистр + цифры)
+
+        // ---- вспомогательные функции ----
+        function getRandomInt(min, max) {
+            return Math.floor(Math.random() * (max - min + 1)) + min;
+        }
+
+        function getRandomFloat(min, max) {
+            return min + Math.random() * (max - min);
+        }
+
+        // Генерация случайного текста капчи: 6 символов (A-Z, 0-9)
+        function generateCaptchaText() {
+            const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ123456789'; // исключаем похожие O, 0, I для удобства, но можно всё
+            let result = '';
+            const length = 6;
+            for (let i = 0; i < length; i++) {
+                const randomIndex = Math.floor(Math.random() * chars.length);
+                result += chars[randomIndex];
+            }
+            return result;
+        }
+
+        // Отрисовка капчи с "Яндекс-подобными" помехами: шум, линии, наклон букв, вариация
+        function drawCaptcha(text) {
+            if (!ctx) return;
+            const w = canvas.width;   // 280
+            const h = canvas.height;  // 100
+
+            // 1) Белый/светлый фон с лёгкой текстурой
+            ctx.fillStyle = '#FEFEF9';
+            ctx.fillRect(0, 0, w, h);
+
+            // 2) Рандомные линии (как на реальной капче)
+            for (let i = 0; i < 12; i++) {
+                ctx.beginPath();
+                ctx.moveTo(getRandomInt(0, w), getRandomInt(0, h));
+                ctx.lineTo(getRandomInt(0, w), getRandomInt(0, h));
+                ctx.strokeStyle = `rgba(100, 120, 140, ${getRandomFloat(0.2, 0.5)})`;
+                ctx.lineWidth = getRandomFloat(0.8, 2.2);
+                ctx.stroke();
+            }
+
+            // 3) Шумовые точки (мелкие кружки / квадратики)
+            for (let i = 0; i < 180; i++) {
+                ctx.fillStyle = `rgba(70, 90, 110, ${getRandomFloat(0.2, 0.65)})`;
+                ctx.beginPath();
+                const radius = getRandomFloat(0.8, 2.5);
+                const x = getRandomInt(5, w - 5);
+                const y = getRandomInt(5, h - 5);
+                ctx.arc(x, y, radius, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // 4) Дополнительные "грязные" мазки / дуги
+            for (let i = 0; i < 8; i++) {
+                ctx.beginPath();
+                ctx.ellipse(
+                    getRandomInt(20, w-20), getRandomInt(20, h-20),
+                    getRandomInt(10, 25), getRandomInt(6, 18),
+                    getRandomFloat(0, Math.PI * 2), 0, Math.PI * 2
+                );
+                ctx.strokeStyle = `rgba(80, 100, 120, 0.25)`;
+                ctx.lineWidth = 1.2;
+                ctx.stroke();
+            }
+
+            // 5) Отрисовка каждого символа с вращением, смещением, разным шрифтом
+            const chars = text.split('');
+            const baseX = []; // динамическое позиционирование
+            const step = 38;   // примерный шаг для 6 символов (30 + 5*38 = 220 < 280)
+            const startX = 26;
+
+            for (let idx = 0; idx < chars.length; idx++) {
+                const char = chars[idx];
+                // случайные настройки для каждой буквы
+                const fontSize = getRandomInt(32, 44);
+                const fontFamily = ['"Segoe UI"', 'Arial', '"Courier New"', 'Verdana', '"Ubuntu Mono"'][Math.floor(Math.random() * 4)];
+                ctx.font = `${fontSize}px ${fontFamily}`;
+                const angle = getRandomFloat(-0.38, 0.38); // радианы -21° ... +21°
+                const xOffset = getRandomInt(-3, 5);
+                const yOffset = getRandomInt(-6, 8);
+                const xPos = startX + (idx * step) + xOffset;
+                const yPos = 58 + yOffset;  // центровка по вертикали
+
+                // Случайный цвет символа (тёмные оттенки, но иногда с легким оттенком)
+                const r = getRandomInt(20, 100);
+                const g = getRandomInt(20, 80);
+                const b = getRandomInt(20, 90);
+                ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
+                ctx.shadowBlur = 0; // убираем тень для чёткости
+                
+                ctx.save();
+                ctx.translate(xPos, yPos);
+                ctx.rotate(angle);
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.fillText(char, 0, 0);
+                ctx.restore();
+            }
+
+            // 6) Добавим поверх немного лёгких случайных кривых линий (пост-эффект)
+            for (let i = 0; i < 5; i++) {
+                ctx.beginPath();
+                ctx.moveTo(getRandomInt(10, w-10), getRandomInt(10, h-10));
+                ctx.quadraticCurveTo(
+                    getRandomInt(30, w-30), getRandomInt(15, h-15),
+                    getRandomInt(10, w-10), getRandomInt(10, h-10)
+                );
+                ctx.strokeStyle = `rgba(140, 110, 70, 0.3)`;
+                ctx.lineWidth = 1.2;
+                ctx.stroke();
+            }
+
+            // 7) лёгкие белые блики (имитация помех)
+            for (let i = 0; i < 40; i++) {
+                ctx.fillStyle = `rgba(255, 255, 245, ${getRandomFloat(0.3, 0.7)})`;
+                ctx.fillRect(getRandomInt(0, w), getRandomInt(0, h), getRandomInt(1, 3), getRandomInt(1, 3));
+            }
+        }
+
+        // Обновление капчи: новый текст, перерисовка, сброс сообщений
+        function refreshCaptcha() {
+            currentCaptchaText = generateCaptchaText();
+            drawCaptcha(currentCaptchaText);
+            // очищаем поле ввода и сообщение об ошибке
+            captchaInput.value = '';
+            clearMessage();
+            // убираем классы анимации
+            captchaInput.classList.remove('shake');
+            messageBlock.classList.remove('error-message', 'success-message');
+            messageBlock.innerHTML = '';
+        }
+
+        function clearMessage() {
+            messageBlock.innerHTML = '';
+            messageBlock.classList.remove('error-message', 'success-message');
+        }
+
+        function showError(text) {
+            messageBlock.innerHTML = `<div class="error-message">⚠️ ${text}</div>`;
+            messageBlock.classList.add('error-message');
+            // встряска для поля
+            captchaInput.classList.add('shake');
+            setTimeout(() => {
+                captchaInput.classList.remove('shake');
+            }, 300);
+            // автофокус обратно
+            captchaInput.focus();
+        }
+
+        function showSuccessAndRedirect() {
+            messageBlock.innerHTML = `<div class="success-message">✅ Проверка пройдена! Перенаправление...</div>`;
+            messageBlock.classList.add('success-message');
+            // деактивируем кнопку, чтобы избежать повторного сабмита
+            checkBtn.disabled = true;
+            checkBtn.style.opacity = '0.7';
+            checkBtn.style.cursor = 'wait';
+            setTimeout(() => {
+                // редирект на /tempmail-app
+                window.location.href = '/tempmail-app';
+            }, 600);
+        }
+
+        // Проверка введённого кода (без учёта регистра, пробелы удаляем)
+        function verifyCaptcha() {
+            const userInput = captchaInput.value.trim();
+            if (userInput === "") {
+                showError("Введите символы с картинки");
+                return;
+            }
+            // Сравниваем без учёта регистра, так как капча генерируется в верхнем регистре, но пользователь может ввести строчные
+            if (userInput.toUpperCase() === currentCaptchaText.toUpperCase()) {
+                // Верно! -> редирект
+                showSuccessAndRedirect();
+            } else {
+                showError("Неверный код. Попробуйте ещё раз или обновите картинку.");
+                // легкое подрагивание, но не меняем капчу автоматически (как Яндекс — остаётся та же)
+                // однако можно предложить обновить вручную, но кнопка refresh есть.
+                captchaInput.select();
+            }
+        }
+
+        // Дополнительно: кнопка обновления по клику, также при клике на canvas для удобства
+        function handleRefresh() {
+            refreshCaptcha();
+        }
+
+        // Обработчик нажатия Enter в поле ввода
+        function onInputKeyPress(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                verifyCaptcha();
+            }
+        }
+
+        // Инициализация страницы: первая капча
+        function init() {
+            refreshCaptcha();   // генерируем первый текст и рисуем капчу
+            // Добавляем слушатели
+            checkBtn.addEventListener('click', verifyCaptcha);
+            refreshBtn.addEventListener('click', handleRefresh);
+            captchaInput.addEventListener('keypress', onInputKeyPress);
+            // также можно обновлять капчу при клике на canvas (как Яндекс: иногда клик обновляет)
+            canvas.addEventListener('click', handleRefresh);
+            // очистка сообщений при фокусе ввода
+            captchaInput.addEventListener('focus', () => {
+                clearMessage();
+                messageBlock.classList.remove('error-message', 'success-message');
+            });
+        }
+
+        // Старт
+        init();
+    })();
+</script>
+</body>
+</html>
